@@ -115,8 +115,7 @@ Resources:
           sudo systemctl enable httpd
           sudo chkconfig httpd on
           cd /var/www/html
-          sudo aws s3 cp ${S3CodeRepo} /var/www/html
-          sudo unzip -o site.zip
+          sudo echo "Udacity Demo Web Server Up and Running!" > index.html
           sudo systemctl restart httpd
       ImageId: ami-0e999cbd62129e3b1 # Amazon Linux 2 AMI, so apt-get won't work, use yum instead
       
