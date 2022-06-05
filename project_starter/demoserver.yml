@@ -10,6 +10,11 @@ Parameters:
   SourceBucketName:
     Description: The S3 bucket name that contains the application source files.
     Type: String
+
+  S3CodeRepo:
+    Description: Full S3 path and file name of zipped file
+    Type: String
+    Default: 's3://udacity-demo-projectfiles/site.zip'
  
 
 Resources:
@@ -101,27 +106,27 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       UserData:
-        Fn::Base64: 
-          !Sub |
-            #!/bin/bash -xe
-            apt-get update -y
-            apt-get install unzip awscli -y
-            apt-get install apache2 -y
-            systemctl start apache2.service
-            cd /var/www/html
-            aws s3 cp s3://${SourceBucketName}/site.zip .
-            unzip -o site.zip
-            UUID=$(cat /proc/sys/kernel/random/uuid)
-            echo "<p>You are on server $UUID</p>" >> index.html #UUID for each instance to verify load balancing
-
-      # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
-      ImageId: ami-0e999cbd62129e3b1
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          sudo yum update -y
+          sudo yum install unzip awscli -y
+          sudo yum install -y httpd
+          sudo systemctl start httpd
+          sudo systemctl enable httpd
+          sudo chkconfig httpd on
+          cd /var/www/html
+          sudo aws s3 cp ${S3CodeRepo} /var/www/html
+          sudo unzip -o site.zip
+          sudo systemctl restart httpd
+      ImageId: ami-0e999cbd62129e3b1 # Amazon Linux 2 AMI, so apt-get won't work, use yum instead
+      
+      
       # ToDo: Change the key-pair name, as applicable to you. 
       
       IamInstanceProfile: !Ref ServerInstanceProfile
       SecurityGroups:
       - Ref: WebServerSecGroup
-      InstanceType: t3.small
+      InstanceType: t3.medium
       BlockDeviceMappings:
       - DeviceName: "/dev/sdk"
         Ebs:
