@@ -16,6 +16,7 @@ you have generated a key pair file, and add the file in the demoserver script.
 An editor would be helpful to visualize the image as well as code. Download the VS Code editor [here](https://code.visualstudio.com/download).
 
 
+##### 3. Create Bucket manually and add the name in demoserver-parameters.json
 
 
 ### How to run the supporting material?
