@@ -3,9 +3,14 @@ Description: >
 
 Parameters:
     # Environment variable exist in demoeserver-parameters.json file
-    EnvironmentName:
-        Description: An environment name that will be prefixed to resource names
-        Type: String
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  SourceBucketName:
+    Description: The S3 bucket name that contains the application source files.
+    Type: String
+
 Resources:
   # Security group for the load balancer
   LBSecGroup:
@@ -65,7 +70,24 @@ Resources:
               - 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-              
+
+      Policies:
+      - PolicyName: !Sub ${EnvironmentName}-BucketAccessPolicy #Inline policy for source s3 bucket passed in as parameter
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+           
+          - Effect: "Allow"
+            Action: "s3:ListBucket"
+            Resource: !Sub "arn:aws:s3:::${SourceBucketName}"
+           
+          - Effect: "Allow"
+            Action: 
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:DeleteObject"
+            Resource: !Sub "arn:aws:s3:::${SourceBucketName}/*"
+          
 # Instance Profile
   ServerInstanceProfile: 
     Type: "AWS::IAM::InstanceProfile"
@@ -78,13 +100,18 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          apt-get update -y
-          apt-get install apache2 -y
-          systemctl start apache2.service
-          cd /var/www/html
-          echo "Udacity Demo Web Server Up and Running!" > index.html
+        Fn::Base64: 
+          !Sub |
+            #!/bin/bash -xe
+            apt-get update -y
+            apt-get install unzip awscli -y
+            apt-get install apache2 -y
+            systemctl start apache2.service
+            cd /var/www/html
+            aws s3 cp s3://${SourceBucketName}/site.zip .
+            unzip -o site.zip
+            UUID=$(cat /proc/sys/kernel/random/uuid)
+            echo "<p>You are on server $UUID</p>" >> index.html #UUID for each instance to verify load balancing
 
       # ToDo: AMI ID of Ubuntu Linux machine. Too get one, try creating a VM from the web console. 
       ImageId: ami-0e999cbd62129e3b1
@@ -102,10 +129,10 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
       VPCZoneIdentifier:
-      - Fn::ImportValue: 
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
         # From the infrastructure outputs
-        !Sub "${EnvironmentName}-PRIV-NETS"
-      LaunchConfigurationName:
+        
+      LaunchConfigurationName: 
         Ref: WebAppLaunchConfig
       MinSize: '4'
       MaxSize: '5'
@@ -156,3 +183,13 @@ Resources:
       VpcId: 
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+
+Outputs: 
+  
+  LoadBalancerURL:
+    Description: URL of the application loadbalancer.
+    Value:  !Sub
+        - http://${URL}
+        - {URL: !GetAtt WebAppLB.DNSName}
+    Export:
+          Name: !Sub ${EnvironmentName}-LoadBalancerURL

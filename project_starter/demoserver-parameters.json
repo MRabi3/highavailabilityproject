@@ -2,5 +2,9 @@
     {
         "ParameterKey": "EnvironmentName",
         "ParameterValue": "DemoServer"
+    },
+    {
+        "ParameterKey": "SourceBucketName",
+        "ParameterValue": "udacity-demo-projectfiles"
     }
 ]
